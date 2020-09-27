@@ -18,18 +18,20 @@ import urllib
 # import mysql.connector as MySQLdb
 
 
-WEB_HOOK_URL = "URL"
-WEB_HOOK_URL += "KEY"
+WEB_HOOK_URL = "https://hooks.slack.com/services/"
+WEB_HOOK_URL += "T017948HG11/B0189UK9HFA/FhDDGD3OfgS8EthSD8DRP5qT"
 
 # f = sys.argv[1].encode('utf-8')
 # get = urllib.parse.quote(f)
 
-get = sys.argv[1]
+user = sys.argv[1]
+ts = sys.argv[2]
+get = sys.argv[3]
 chrome_options = Options()
 chrome_options.add_argument('--headless')
 chrome_options.add_argument('--no-sandbox')
 chrome_options.add_argument('--disable-dev-shm-usage')
-driver = webdriver.Chrome("chromedriver", chrome_options=chrome_options)
+driver = webdriver.Chrome("/var/www/html/chromedriver", chrome_options=chrome_options)
 
 try:
 
@@ -47,10 +49,8 @@ try:
     themes = driver.find_elements_by_xpath("//div[@class=\'r\']/a/h3")
     urls = driver.find_elements_by_xpath("//div[@class=\'r\']/a")
 
-    # listを制作するため
     li = []
 
-    #５件のみ取得
     num = 0
 
     for theme, url in zip(themes, urls):
@@ -61,14 +61,31 @@ try:
         li.append([th, ur])
         num += 1
         word = '以下が参考資料です！\n'
-        for response in li:
-            word += response[0] + '\n' + response[1] + '\n'
+        # for response in li:
+        #     word += response[0] + '\n' + response[1] + '\n'
+    a = int(1)
+
+    for response in li:
+        word += str(a) + '<' + response[1] + '|' + response[0] + '> \n'
+        a += 1
+
     requests.post(WEB_HOOK_URL, data=json.dumps({
-        "text" : "<@" + get + ">\n" + word
+        "thread_ts": ts,
+        "blocks": [
+            {
+                "type": "section",
+                "block_id": "section1",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": word
+                }
+            }
+        ]
+        # "text" : "<@" + user + ">\n" + word
     }))
     driver.quit()
-except:
-    requests.post(WEB_HOOK_URL, data=json.dumps({
-        "text" : "エラーしました"
-    }))
-traceback.print_exc()
+
+except Exception as e:
+    print('type:' + str(type(e)))
+    print('args:' + str(e.args))
+    print('e:' + str(e))
