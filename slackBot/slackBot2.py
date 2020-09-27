@@ -19,7 +19,7 @@ import urllib
 
 
 WEB_HOOK_URL = "https://hooks.slack.com/services/"
-WEB_HOOK_URL += "T017948HG11/B0189UK9HFA/FhDDGD3OfgS8EthSD8DRP5qT"
+WEB_HOOK_URL += "API"
 
 # f = sys.argv[1].encode('utf-8')
 # get = urllib.parse.quote(f)

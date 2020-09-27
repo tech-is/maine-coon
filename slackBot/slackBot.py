@@ -18,10 +18,10 @@ import mysql.connector as MySQLdb
 from janome.tokenizer import Tokenizer
 
 WEB_HOOK_URL = "https://hooks.slack.com/services/"
-WEB_HOOK_URL += "T017948HG11/B0189UK9HFA/FhDDGD3OfgS8EthSD8DRP5qT"
+WEB_HOOK_URL += "API"
 
 app = flask.Flask(__name__)
-app.secret_key = 'hogehoge'
+app.secret_key = 'KEY'
 
 @app.route('/', methods=["POST"])
 def index():
@@ -52,10 +52,10 @@ def index():
     if 'thread_ts' in event:
         try:
             conn = MySQLdb.connect(
-                    user='root',
-                    passwd='summer',
-                    host='localhost',
-                    db='flask_sql')
+                    user='USER',
+                    passwd='PASS',
+                    host='HOST',
+                    db='DB')
             cur = conn.cursor()
             sqlSe = "SELECT * FROM Question WHERE ts='" + event['thread_ts'] + "'"
             cur.execute(sqlSe)
@@ -111,10 +111,10 @@ def index():
 
         try:
             conn = MySQLdb.connect(
-                    user='root',
-                    passwd='summer',
-                    host='localhost',
-                    db='flask_sql')
+                    user='USER',
+                    passwd='PASS',
+                    host='HOST',
+                    db='DB')
             cur = conn.cursor()
             sqlIn = "INSERT INTO Question (id, name, ts, next, done) VALUES (NULL, '" + event['user'] + "' ,'" + event['ts'] + "' ,0 ,0)"
             cur.execute(sqlIn)
@@ -131,4 +131,4 @@ def index():
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='ryo-pro.com', port=5000, debug=True)
+    app.run(host='HOST', port=0, debug=True)
