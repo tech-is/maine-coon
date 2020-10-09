@@ -14,11 +14,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 import traceback
 import urllib
-import MySQLdb as MySQLdb
+import MySQLdb
 import jpholiday
 
 # from operate import operate
 # app.register_blueprint(operate)
+
 
 WEB_HOOK_URL = "https://hooks.slack.com/services/"
 WEB_HOOK_URL += "T017D1H6Y7L/B018CH391CG/CCBSFcq7IM0Ey0qWYKTIP8OR"
@@ -37,6 +38,7 @@ def getConnection():
     )
 #DBここまで
 
+
 @app.route('/', methods=["POST"])
 def index():
 
@@ -44,6 +46,16 @@ def index():
 
     # json 文字列を辞書型に変換
     data = json.loads(data)
+
+    #日付・詳細な日付・時間・曜日を取得
+    dt = datetime.date.today()
+    dt_now = datetime.datetime.now()
+    dt_hour = dt_now.hour
+    #weekday()メソッドで、月曜日が0で日曜日が6の整数値が得られる。土日=5,6
+    dt_weekday = dt_now.weekday()
+    #休業日判定用(改良しないとバグってる)
+    #holiday = "2020-10-04"
+    strdt = dt.strftime('%Y-%m-%d')
 
     # challengeをslackにレスポンスの必要がある。
     if 'challenge' in data:
@@ -71,63 +83,81 @@ def index():
         cursor = connection.cursor()
         cursor.execute(sql,(accsesslog,))
         tests = cursor.fetchall()
+        #holidaysから休日を取得
+        sql = "SELECT `holiday`,`message` FROM `holidays` WHERE holiday LIKE %s"
+        cursor = connection.cursor()
+        cursor.execute(sql,(strdt,))
+        holidays = cursor.fetchall()
 
         cursor.close()
         connection.close()
 
         for testdb in tests:
             print(testdb)
-    # #DBここまで
 
-        #日付・詳細な日付・時間・曜日を取得
-        dt = datetime.date.today()
-        dt_now = datetime.datetime.now()
-        dt_hour = dt_now.hour
-        #weekday()メソッドで、月曜日が0で日曜日が6の整数値が得られる。土日=5,6
-        dt_weekday = dt_now.weekday()
-        #休業日判定用(改良しないとバグってる)
-        closes = [datetime.date(2020,9,25)]
+        for holidaydb in holidays:
+            print(holidaydb)
+
+    # #DBここまで
 
         #質問かどうか判定
         if accsesslog == "質問":
-            #休業日判定（バグってる）
-            for close in closes:
-                if dt == close:
+            #休業日判定
+            try:
+                if dt == holidaydb[0]:
                     requests.post(WEB_HOOK_URL, data=json.dumps({
                         "thread_ts" : event["ts"],
-                        "text": "<@" + event["user"] + ">" + "\n本日スクールはお休みです。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
+                        "text": "<@" + event["user"] + ">" + str(holidaydb[1])
                         }))
-            #平日の場合
-            if dt_weekday >= 0 and dt_weekday <= 4:
-                #時間外の時
-                if not dt_hour > 10 or not dt_hour < 22:
-                    if event["text"].startswith(accsesslog):
-                        requests.post(WEB_HOOK_URL, data=json.dumps({
-                        "thread_ts" : event["ts"],
-                        "text": "<@" + event["user"] + ">" + "\n（平日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
-                        }))
-                #時間内の時
-                else:
-                    if event["text"].startswith(accsesslog):
-                        requests.post(WEB_HOOK_URL, data=json.dumps({
-                        "thread_ts" : event["ts"],
-                        "text": "<@" + event["user"] + ">"+ "\n（平日用）先生を探しています。\n【ZOOM URL:】"
-                        }))
-            else:#休祝日の場合(土日)
-                #時間外の時
-                if not dt_hour > 10 or not dt_hour < 19:
-                    if event["text"].startswith(accsesslog):
-                        requests.post(WEB_HOOK_URL, data=json.dumps({
-                        "thread_ts" : event["ts"],
-                        "text": "<@" + event["user"] + ">" + "\n（休祝日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
-                        }))
-                #時間内の時
-                else:
-                    if event["text"].startswith(accsesslog):
-                        requests.post(WEB_HOOK_URL, data=json.dumps({
-                        "thread_ts" : event["ts"],
-                        "text": "<@" + event["user"] + ">"+ "\n（休祝日用）先生を探しています。\n【ZOOM URL:】"
-                        }))
+            except:
+                #祝日の場合
+                if dt == jpholiday.is_holiday(datetime.date.today()):
+                    #祝日の時間外の時
+                    if not dt_hour > 10 or not dt_hour < 19:
+                        if event["text"].startswith(accsesslog):
+                            requests.post(WEB_HOOK_URL, data=json.dumps({
+                            "thread_ts" : event["ts"],
+                            "text": "<@" + event["user"] + ">" + "\n（祝日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
+                            }))
+                    #祝日の時間内の時
+                    else:
+                        if event["text"].startswith(accsesslog):
+                            requests.post(WEB_HOOK_URL, data=json.dumps({
+                            "thread_ts" : event["ts"],
+                            "text": "<@" + event["user"] + ">"+ "\n（祝日用）先生を探しています。\n【ZOOM URL:】"
+                            }))
+        
+                #平日の場合
+                elif dt_weekday >= 0 and dt_weekday <= 4:
+                    #平日の時間外の時
+                    if not dt_hour > 10 or not dt_hour < 22:
+                        if event["text"].startswith(accsesslog):
+                            requests.post(WEB_HOOK_URL, data=json.dumps({
+                            "thread_ts" : event["ts"],
+                            "text": "<@" + event["user"] + ">" + "\n（平日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
+                            }))
+                    #平日の時間内の時
+                    else:
+                        if event["text"].startswith(accsesslog):
+                            requests.post(WEB_HOOK_URL, data=json.dumps({
+                            "thread_ts" : event["ts"],
+                            "text": "<@" + event["user"] + ">"+ "\n（平日用）先生を探しています。\n【ZOOM URL:】"
+                            }))
+                else:#土日の場合
+                    #土日の時間外の時
+                    if not dt_hour > 10 or not dt_hour < 19:
+                        if event["text"].startswith(accsesslog):
+                            requests.post(WEB_HOOK_URL, data=json.dumps({
+                            "thread_ts" : event["ts"],
+                            "text": "<@" + event["user"] + ">" + "\n（土日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
+                            }))
+                    #土日の時間内の時
+                    else:
+                        if event["text"].startswith(accsesslog):
+                            requests.post(WEB_HOOK_URL, data=json.dumps({
+                            "thread_ts" : event["ts"],
+                            "text": "<@" + event["user"] + ">"+ "\n（土日用）先生を探しています。\n【ZOOM URL:】"
+                            }))
         #「質問」以外の場合
         else:        
             if event["text"].startswith(accsesslog):
