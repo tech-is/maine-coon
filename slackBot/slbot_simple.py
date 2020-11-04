@@ -17,6 +17,7 @@ import urllib
 import MySQLdb
 import jpholiday
 from janome.tokenizer import Tokenizer
+import random
 
 # from operate import operate
 # app.register_blueprint(operate)
@@ -69,7 +70,13 @@ def index():
         event = data['event']
         username = event['user']
         accsesslog = event['text']
-    #     print(event)
+
+        #受け取ったメッセージ（accsesslog）を形態素分析（「質問」用）
+        tokenizer = Tokenizer()
+        sentences = []
+        for token in tokenizer.tokenize(accsesslog):
+            sentences.append(token.base_form)
+
 
         #DB接続用
         connection = getConnection()
@@ -78,8 +85,27 @@ def index():
         sql = "INSERT INTO `access_logs`(`user_id`, `log`) VALUES (%s,%s)"
         cursor.execute(sql,(username,accsesslog,))
         connection.commit()
-        #tech-informationから回答を取得
-        sql = "SELECT `keyword`,`tech_info` FROM `tech_information` WHERE keyword REGEXP %s LIMIT 1"
+        #study_timeにログを登録
+        if "始め" in accsesslog or "はじめ" in accsesslog or "初め" in accsesslog:
+            cursor = connection.cursor()
+            sql = "INSERT INTO `study_time`(`user_name`, `keyword`,`start_time`) VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE `keyword`=%s,`start_time`=%s"
+            cursor.execute(sql,(username,accsesslog,dt_now,accsesslog,dt_now,))
+            connection.commit()
+        #study_timeにログを登録
+        if "終わり" in accsesslog or "終り" in accsesslog or "おわり" in accsesslog:
+            cursor = connection.cursor()
+            sql = "UPDATE `study_time` SET `end_time`=%s,`keyword`=%s WHERE user_name=%s ORDER BY id DESC limit 1"
+            cursor.execute(sql,(dt_now,accsesslog,username,))
+            connection.commit()
+        #study_timeから勉強時間を抽出（まだできていない！！！！！）
+        # if "終わり" in accsesslog or "終り" in accsesslog or "おわり" in accsesslog:
+        #     cursor = connection.cursor()
+        #     sql = "SELECT `start_time`,`end_time`, timestampdiff(MINUTE,start_time,end_time) FROM `study_time` WHERE user_name=%s ORDER BY id DESC limit 1"
+        #     cursor.execute(sql,(username,))
+        #     st_times = cursor.fetchall()
+        
+        #tech-informationから回答を取得(ここでは形態素分析は行わない)
+        sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
         cursor = connection.cursor()
         cursor.execute(sql,(accsesslog,))
         tests = cursor.fetchall()
@@ -92,22 +118,14 @@ def index():
         cursor.close()
         connection.close()
 
-        for testdb in tests:
-            print(testdb)
+        # for testdb in tests:
+        #     print(testdb)
 
         for holidaydb in holidays:
             print(holidaydb)
 
+
     # #DBここまで
-
-
-        #受け取ったメッセージを形態素分析
-        tokenizer = Tokenizer()
-        sentences = []
-
-        for token in tokenizer.tokenize(accsesslog):
-            sentences.append(token.base_form)
-
 
         #返信するメッセージを格納
         botmessages=[]
@@ -116,13 +134,13 @@ def index():
         try:
             if "質問" in sentences:        
                 #平日の返し(am=時間内/pm=時間外)
-                weekday_am = "\n（平日用）先生を探しています。\n【ZOOM URL:】"
+                weekday_am = "\n（平日用）先生を探しています。\n5分以上経っても反応がない時は、もう一度「質問があります」って話しかけてね。"
                 weekday_pm = "\n（平日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
                 #土日の返し
-                ssday_am = "\n（土日用）先生を探しています。\n【ZOOM URL:】"
+                ssday_am = "\n（土日用）先生を探しています。\n5分以上経っても反応がない時は、もう一度「質問があります」って話しかけてね。"
                 ssday_pm = "\n（土日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
                 #祝日の返し
-                holiday_am = "\n（祝日用）先生を探しています。\n【ZOOM URL:】"
+                holiday_am = "\n（祝日用）先生を探しています。\n5分以上経っても反応がない時は、もう一度「質問があります」って話しかけてね。"
                 holiday_pm = "\n（祝日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
 
                 #休業日判定
@@ -134,46 +152,45 @@ def index():
                             }))
                 except:
                     #祝日の場合
-                    if dt == jpholiday.is_holiday(datetime.date.today()):
+                    if True == jpholiday.is_holiday(datetime.date.today()):
                         #祝日の時間外の時
                         if not dt_hour > 9 or not dt_hour < 19:
-                            if event["text"].startswith(accsesslog):
-                                botmessages.append(holiday_pm)
+                            botmessages.append(holiday_pm)
                         #祝日の時間内の時
                         else:
-                            if event["text"].startswith(accsesslog):
-                                botmessages.append(holiday_am)
+                            botmessages.append(holiday_am)
             
                     #平日の場合
                     elif dt_weekday >= 0 and dt_weekday <= 4:
                         #平日の時間外の時
                         if not dt_hour > 9 or not dt_hour < 22:
-                            if event["text"].startswith(accsesslog):
-                                botmessages.append(weekday_pm)
+                            botmessages.append(weekday_pm)
                         #平日の時間内の時
                         else:
-                            if event["text"].startswith(accsesslog):
-                                botmessages.append(weekday_am)
+                            botmessages.append(weekday_am)
                     else:#土日の場合
                         #土日の時間外の時
                         if not dt_hour > 9 or not dt_hour < 19:
-                            if event["text"].startswith(accsesslog):
-                                botmessages.append(ssday_pm)
+                            botmessages.append(ssday_pm)
                         #土日の時間内の時
                         else:
-                            if event["text"].startswith(accsesslog):
-                                botmessages.append(ssday_am)
+                            botmessages.append(ssday_am)
 
             #「質問」以外の場合
             elif sentences != []:
                 #DBに単語が登録されているとき
                 try:
-                    for sentence in sentences:
-                        botmessages.append(str(testdb[1]))
-                        print(sentence)
+                    if event["text"].startswith(accsesslog):
+                        i=len(tests)
+                        j=i-1
+                        k=random.randint(0,j)
+                        botmessages.append(str(tests[k]).replace("('",'').replace("',)",''))
+
                 #DBに単語が登録されていないとき
                 except NameError:
-                    botmessages.append("その言葉はむずかしいな。\n質問がある時は、「質問」って書き込んでね。")
+                    botmessages.append(":relaxed:")#おばけの絵文字
+                except ValueError:#基本こちらで返される
+                    botmessages.append(":thinking_face:")#考える絵文字
 
             #返信するメッセージを取り出す
             for botmessage in botmessages:
@@ -188,7 +205,7 @@ def index():
             else:
                 requests.post(WEB_HOOK_URL, data=json.dumps({
                 "thread_ts" : event["ts"],
-                "text": "<@" + event["user"] + ">" + botmessage
+                "text": "<@" + event["user"] + ">" + str(botmessage)
                 }))
         #途中でNameErrorを起こしたとき、止まらないようにする処理
         except NameError:
@@ -198,6 +215,7 @@ def index():
                 }))
         #途中で何かエラーを起こしたとき、止まらないようにする処理
         finally:
+            #sentences.clear()
             requests.post(WEB_HOOK_URL, data=json.dumps({
 
                 }))
