@@ -85,24 +85,6 @@ def index():
         sql = "INSERT INTO `access_logs`(`user_id`, `log`) VALUES (%s,%s)"
         cursor.execute(sql,(username,accsesslog,))
         connection.commit()
-        #study_timeにログを登録
-        if "始め" in accsesslog or "はじめ" in accsesslog or "初め" in accsesslog:
-            cursor = connection.cursor()
-            sql = "INSERT INTO `study_time`(`user_name`, `keyword`,`start_time`) VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE `keyword`=%s,`start_time`=%s"
-            cursor.execute(sql,(username,accsesslog,dt_now,accsesslog,dt_now,))
-            connection.commit()
-        #study_timeにログを登録
-        if "終わり" in accsesslog or "終り" in accsesslog or "おわり" in accsesslog:
-            cursor = connection.cursor()
-            sql = "UPDATE `study_time` SET `end_time`=%s,`keyword`=%s WHERE user_name=%s ORDER BY id DESC limit 1"
-            cursor.execute(sql,(dt_now,accsesslog,username,))
-            connection.commit()
-        #study_timeから勉強時間を抽出（まだできていない！！！！！）
-        # if "終わり" in accsesslog or "終り" in accsesslog or "おわり" in accsesslog:
-        #     cursor = connection.cursor()
-        #     sql = "SELECT `start_time`,`end_time`, timestampdiff(MINUTE,start_time,end_time) FROM `study_time` WHERE user_name=%s ORDER BY id DESC limit 1"
-        #     cursor.execute(sql,(username,))
-        #     st_times = cursor.fetchall()
         
         #tech-informationから回答を取得(ここでは形態素分析は行わない)
         sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
