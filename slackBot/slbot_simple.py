@@ -114,55 +114,152 @@ def index():
 
         #質問かどうか判定
         try:
-            if "質問" in sentences:        
-                #平日の返し(am=時間内/pm=時間外)
-                weekday_am = "\n（平日用）先生を探しています。\n5分以上経っても反応がない時は、もう一度「質問があります」って話しかけてね。"
-                weekday_pm = "\n（平日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
-                #土日の返し
-                ssday_am = "\n（土日用）先生を探しています。\n5分以上経っても反応がない時は、もう一度「質問があります」って話しかけてね。"
-                ssday_pm = "\n（土日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
-                #祝日の返し
-                holiday_am = "\n（祝日用）先生を探しています。\n5分以上経っても反応がない時は、もう一度「質問があります」って話しかけてね。"
-                holiday_pm = "\n（祝日用）営業時間外です。\n営業時間は以下の通りとなります。\n【平日】10時～22時\n【休祝日】10時～19時"
-
+            if "質問" in sentences or "もん" in sentences:        
                 #休業日判定
                 try:
                     if dt == holidaydb[0]:
-                        requests.post(WEB_HOOK_URL, data=json.dumps({
-                            "thread_ts" : event["ts"],
-                            "text": "<@" + event["user"] + ">" + str(holidaydb[1])
-                            }))
+                        botmessages.append(str(holidaydb[1]))
                 except:
                     #祝日の場合
                     if True == jpholiday.is_holiday(datetime.date.today()):
                         #祝日の時間外の時
                         if not dt_hour > 9 or not dt_hour < 19:
-                            botmessages.append(holiday_pm)
+                            connection = getConnection()
+                            sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                            cursor = connection.cursor()
+                            cursor.execute(sql,("営業時間・祝日・時間外",))
+                            schooltimes = cursor.fetchall()
+                            cursor.close()
+                            connection.close()
+                            for schooltime in schooltimes:
+                                print(schooltime)
+                            botmessages.append(str(schooltime[0]))
                         #祝日の時間内の時
                         else:
-                            botmessages.append(holiday_am)
+                            connection = getConnection()
+                            sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                            cursor = connection.cursor()
+                            cursor.execute(sql,("営業時間・祝日・時間内",))
+                            schooltimes = cursor.fetchall()
+                            cursor.close()
+                            connection.close()
+                            for schooltime in schooltimes:
+                                print(schooltime)
+                            botmessages.append(str(schooltime[0]))
             
                     #平日の場合
                     elif dt_weekday >= 0 and dt_weekday <= 4:
                         #平日の時間外の時
                         if not dt_hour > 9 or not dt_hour < 22:
-                            botmessages.append(weekday_pm)
+                            connection = getConnection()
+                            sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                            cursor = connection.cursor()
+                            cursor.execute(sql,("営業時間・平日・時間外",))
+                            schooltimes = cursor.fetchall()
+                            cursor.close()
+                            connection.close()
+                            for schooltime in schooltimes:
+                                print(schooltime)
+                            botmessages.append(str(schooltime[0]))
                         #平日の時間内の時
                         else:
-                            botmessages.append(weekday_am)
+                            connection = getConnection()
+                            sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                            cursor = connection.cursor()
+                            cursor.execute(sql,("営業時間・平日・時間内",))
+                            schooltimes = cursor.fetchall()
+                            cursor.close()
+                            connection.close()
+                            for schooltime in schooltimes:
+                                print(schooltime)
+                            botmessages.append(str(schooltime[0]))
                     else:#土日の場合
                         #土日の時間外の時
                         if not dt_hour > 9 or not dt_hour < 19:
-                            botmessages.append(ssday_pm)
+                            connection = getConnection()
+                            sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                            cursor = connection.cursor()
+                            cursor.execute(sql,("営業時間・土日・時間外",))
+                            schooltimes = cursor.fetchall()
+                            cursor.close()
+                            connection.close()
+                            for schooltime in schooltimes:
+                                print(schooltime)
+                            botmessages.append(str(schooltime[0]))
                         #土日の時間内の時
                         else:
-                            botmessages.append(ssday_am)
+                            connection = getConnection()
+                            sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                            cursor = connection.cursor()
+                            cursor.execute(sql,("営業時間・土日・時間内",))
+                            schooltimes = cursor.fetchall()
+                            cursor.close()
+                            connection.close()
+                            for schooltime in schooltimes:
+                                print(schooltime)
+                            botmessages.append(str(schooltime[0]))
 
             #「質問」以外の場合
             elif sentences != []:
                 #DBに単語が登録されているとき
                 try:
-                    if event["text"].startswith(accsesslog):
+                    if "おわる" in sentences or "終わる" in sentences or "終る" in sentences or "終" in sentences or "終了" in sentences:
+                        connection = getConnection()
+                        #tech-informationから回答を取得
+                        sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                        cursor = connection.cursor()
+                        cursor.execute(sql,("おわる",))
+                        ohenji = cursor.fetchall()
+                        cursor.close()
+                        connection.close()
+                        i=len(ohenji)
+                        j=i-1
+                        k=random.randint(0,j)
+                        botmessages.append(str(ohenji[k]).replace("('",'').replace("',)",''))
+
+                    elif "中断" in sentences or "ゅうだんします" in sentences or "ゅうだん" in sentences or "休憩" in sentences or "きゅう" in sentences or "抜ける" in sentences or "ぬける" in sentences:
+                        connection = getConnection()
+                        #tech-informationから回答を取得
+                        sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                        cursor = connection.cursor()
+                        cursor.execute(sql,("中断",))
+                        ohenji = cursor.fetchall()
+                        cursor.close()
+                        connection.close()
+                        i=len(ohenji)
+                        j=i-1
+                        k=random.randint(0,j)
+                        botmessages.append(str(ohenji[k]).replace("('",'').replace("',)",''))
+
+                    elif "再開" in sentences or "さい" in sentences or "もどる" in sentences or "戻る" in sentences:
+                        connection = getConnection()
+                        #tech-informationから回答を取得
+                        sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                        cursor = connection.cursor()
+                        cursor.execute(sql,("再開",))
+                        ohenji = cursor.fetchall()
+                        cursor.close()
+                        connection.close()
+                        i=len(ohenji)
+                        j=i-1
+                        k=random.randint(0,j)
+                        botmessages.append(str(ohenji[k]).replace("('",'').replace("',)",''))
+
+                    elif "はじめ" in sentences or "初め" in sentences or "始める" in sentences or "開始" in sentences:
+                        connection = getConnection()
+                        #tech-informationから回答を取得
+                        sql = "SELECT `tech_info` FROM `tech_information` WHERE keyword REGEXP %s"
+                        cursor = connection.cursor()
+                        cursor.execute(sql,("はじめ",))
+                        ohenji = cursor.fetchall()
+                        cursor.close()
+                        connection.close()
+                        i=len(ohenji)
+                        j=i-1
+                        k=random.randint(0,j)
+                        botmessages.append(str(ohenji[k]).replace("('",'').replace("',)",''))
+
+                    elif event["text"].startswith(accsesslog):
                         i=len(tests)
                         j=i-1
                         k=random.randint(0,j)
