@@ -18,8 +18,7 @@ import urllib
 # import mysql.connector as MySQLdb
 
 
-WEB_HOOK_URL = "https://hooks.slack.com/services/"
-WEB_HOOK_URL += "T017D1H6Y7L/B01DP911DA9/RI84U8jgiHl97fn2vjzHQwTm"
+WEB_HOOK_URL = config.get('WEBHOOK','URL2')
 
 # f = sys.argv[1].encode('utf-8')
 # get = urllib.parse.quote(f)
@@ -45,9 +44,10 @@ try:
 
     google =  "https://www.google.com/search?q={}&safe=off".format(get)
     driver.get(google)
-    themes = driver.find_elements_by_xpath("//*[@id=\"rso\"]/div/div/div[1]/a/h3")
+    themes = driver.find_elements_by_xpath("//div[@id=\"rso\"]/div/div/div[1]/a/h3/span")
     urls = driver.find_elements_by_xpath("//*[@id=\"rso\"]/div/div/div[1]/a")
-
+    print(themes)
+    print(urls)
     li = []
 
     num = 0

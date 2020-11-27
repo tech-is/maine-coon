@@ -12,12 +12,12 @@ import urllib
 import MySQLdb
 from janome.tokenizer import Tokenizer
 import re
+#設定ファイルの読み込み(iniファイルはフルパスにしないと動かない)
+import configparser
+config = configparser.ConfigParser()
+config.read('/var/www/html/slackbot_config.ini', encoding='utf-8')
 
-WEB_HOOK_URL = "https://hooks.slack.com/services/"
-WEB_HOOK_URL += "T017D1H6Y7L/B01DP911DA9/RI84U8jgiHl97fn2vjzHQwTm"
-
-# DM
-# WEB_HOOK_URL = "https://hooks.slack.com/services/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"
+WEB_HOOK_URL = config.get('WEBHOOK','URL2')
 
 app = flask.Flask(__name__)
 app.secret_key = 'hogehoge'
@@ -30,21 +30,10 @@ def is_int(s, ts, user):
         if len(s) != 1:
             raise ValueError
 
-        int(s)
-
-        p = re.compile('[0-9]')
-
-        if p.fullmatch(s) == None:
-            trans_table = str.maketrans({"０": "0", "１": "1", "２": "2", "３": "3", "４": "4", "５": "5", "６": "6", "７": "7", "８": "8", "９": "9"})
-            s = s.translate(trans_table)
-
+        s = str(int(s))
         return s
 
     except ValueError:
-        requests.post(WEB_HOOK_URL, data=json.dumps({
-            "thread_ts" : ts,
-            "text": "<@" + user + ">さん\n半角数字を1つ送ってください。"
-            }))
         return 'False'
 
 @app.route('/', methods=["POST"])
@@ -72,36 +61,42 @@ def index():
 
     if 'thread_ts' in event:
         conn = MySQLdb.connect(
-            host="localhost",#dbサーバ
-            db="maine-coon",#db名
-            user="root",
-            password="q2eiVk1V",
-            charset="utf8",
-            #cursorclass=MySQLdb.cursors.DictCursor
+            host=config.get('DB','host'),
+            db=config.get('DB','db'),
+            user=config.get('DB','user'),
+            password=config.get('DB','password'),
+            charset=config.get('DB','charset')
                 )
         cur = conn.cursor()
-
+        
+        if event['text'] == '森':
+            requests.post(WEB_HOOK_URL, data=json.dumps({
+                "thread_ts": event["ts"],
+                "text": "<@" + event["user"] + ">さん\n" + "森さんって最高だよね！"
+            }))
+            return Response("nothing", mimetype='text/plane')
         if event['text'] == '4':
             requests.post(WEB_HOOK_URL, data=json.dumps({
             "thread_ts" : event["ts"],
             "text": "<@" + event["user"] + ">さん\n質問かな？\nわからない言葉をひと言送ってね！\n調べるね！！"
             }))
             quNumDB = '4'
-            sqlUp = "UPDATE Qu SET quNum='" + quNumDB + "' WHERE ts='" + event["thread_ts"] + "'"
-            cur.execute(sqlUp)
+            sqlUp = "UPDATE Qu SET quNum=%s WHERE ts=%s"
+            cur.execute(sqlUp, (quNumDB, event["thread_ts"],) )
             conn.commit()
             cur.close()
             conn.close()
             return Response("nothing", mimetype='text/plane')
 
         try:
-            sqlSe = "SELECT * FROM Qu WHERE ts='" + event["thread_ts"] + "'"
-            cur.execute(sqlSe)
+            sqlSe = "SELECT * FROM %s WHERE ts=%s"
+            cur.execute(sqlSe, (Qu, event["thread_ts"],))
             row = cur.fetchone()
             print(row)
             userDB = row[1]
             tsDB = row[2]
             quNumDB = row[3]
+            
 
             if quNumDB == '4':
                 os.system('python3 /var/www/html/slackBot2.py '+ userDB +' '+ tsDB + ' "' +urllib.parse.quote(event["text"]) + '" &')
@@ -114,7 +109,12 @@ def index():
                 return Response("nothing", mimetype='text/plane')
 
             event["text"] = is_int(event["text"], event["thread_ts"], event["user"])
+
             if event["text"] == 'False':
+                requests.post(WEB_HOOK_URL, data=json.dumps({
+                    "thread_ts" : ts,
+                    "text": "<@" + user + ">さん\n半角数字を1つ送ってください。"
+                }))
                 return Response("nothing", mimetype='text/plane')
 
             if quNumDB != '000':
@@ -138,8 +138,8 @@ def index():
             else:
                 quNumDB = '00' + event["text"]
 
-            sqlUp = "UPDATE Qu SET quNum='" + quNumDB + "' WHERE ts='" + event["thread_ts"] + "'"
-            cur.execute(sqlUp)
+            sqlUp = "UPDATE Qu SET quNum=%s WHERE ts=%s"
+            cur.execute(sqlUp,(quNumDB ,event["thread_ts"],))
             conn.commit()
             cur.close()
             conn.close()
@@ -151,19 +151,22 @@ def index():
 
         try:
             conn = MySQLdb.connect(
-                    user='root',
-                    passwd='q2eiVk1V',
-                    host='localhost',
-                    db='maine-coon'
+                host=config.get('DB','host'),
+                db=config.get('DB','db'),
+                user=config.get('DB','user'),
+                password=config.get('DB','password'),
+                charset=config.get('DB','charset')
                     )
             cur = conn.cursor()
             sqlSe = "SELECT * FROM An WHERE anNum='" + quNumDB + "'"
             cur.execute(sqlSe)
             row = cur.fetchone()
-            a1DB = row[2]
+            a1DB = row[3]
             conn.commit()
             cur.close()
             conn.close()
+
+            #print(a1DB)
 
             requests.post(WEB_HOOK_URL, data=json.dumps({
             "thread_ts" : event["ts"],
@@ -196,14 +199,15 @@ def index():
 
     try:
         conn = MySQLdb.connect(
-                user='root',
-                passwd='q2eiVk1V',
-                host='localhost',
-                db='maine-coon'
+            host=config.get('DB','host'),
+            db=config.get('DB','db'),
+            user=config.get('DB','user'),
+            password=config.get('DB','password'),
+            charset=config.get('DB','charset')
                 )
         cur = conn.cursor()
-        sqlIn = "INSERT INTO Qu (id, user, ts, quNum) VALUES (NULL, '" + event['user'] + "' ,'" + event['ts'] + "','000')"
-        cur.execute(sqlIn)
+        sqlIn = "INSERT INTO Qu (id, user, ts, quNum) VALUES (NULL, %s, %s,'000')"
+        cur.execute(sqlIn,(event['user'], event['ts']))
         conn.commit()
         cur.close()
         conn.close()
@@ -216,4 +220,4 @@ def index():
 
 if __name__ == '__main__':
     app.debug = True
-    app.run(host='153.127.9.96', port=5000, debug=True)
+    app.run(host=config.get('app_run','host'),port=config.get('app_run','port2'),debug=config.get('app_run','debug'))
